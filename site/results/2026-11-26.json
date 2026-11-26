@@ -1795,6 +1795,201 @@
    ],
    "winner": 0,
    "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:30:00.739Z",
+   "names": [
+    "Follow the ball",
+    "Written rule"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:30:30.359Z",
+   "names": [
+    "Written rule",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:30:59.021Z",
+   "names": [
+    "Model X",
+    "Follow the ball"
+   ],
+   "score": [
+    5,
+    0
+   ],
+   "winner": 0,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:31:28.682Z",
+   "names": [
+    "Written rule",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:31:49.035Z",
+   "names": [
+    "Follow the ball",
+    "Written rule"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:32:17.839Z",
+   "names": [
+    "Follow the ball",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:32:47.137Z",
+   "names": [
+    "Follow the ball",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:33:07.441Z",
+   "names": [
+    "Written rule",
+    "Follow the ball"
+   ],
+   "score": [
+    5,
+    0
+   ],
+   "winner": 0,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:33:36.804Z",
+   "names": [
+    "Model X",
+    "Written rule"
+   ],
+   "score": [
+    5,
+    0
+   ],
+   "winner": 0,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:34:05.984Z",
+   "names": [
+    "Written rule",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:34:26.240Z",
+   "names": [
+    "Follow the ball",
+    "Written rule"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:34:56.429Z",
+   "names": [
+    "Model X",
+    "Follow the ball"
+   ],
+   "score": [
+    5,
+    0
+   ],
+   "winner": 0,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:35:25.993Z",
+   "names": [
+    "Follow the ball",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:35:54.752Z",
+   "names": [
+    "Written rule",
+    "Model X"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
+  },
+  {
+   "ended": "2026-11-26T09:36:14.940Z",
+   "names": [
+    "Follow the ball",
+    "Written rule"
+   ],
+   "score": [
+    0,
+    5
+   ],
+   "winner": 1,
+   "draw": false
   }
  ],
  "house": [
@@ -1803,8 +1998,8 @@
   "Claude Opus 5.5",
   "Claude Sonnet 5.5",
   "Follow the ball",
-  "Written rule",
-  "Model X"
+  "Model X",
+  "Written rule"
  ],
- "saved": "2026-11-26T09:28:28.167Z"
+ "saved": "2026-11-26T09:36:27.025Z"
 }
