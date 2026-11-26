@@ -1,0 +1,5 @@
+data/
+house/.tokens.json
+clients/.token-*
+node_modules/
+.DS_Store

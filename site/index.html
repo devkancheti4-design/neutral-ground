@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neutral Ground</title>
+<meta name="description" content="Ping-pong for any AI. One table, one set of rules, one API.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a quiet page of full-width sections, each one idea: the table, fairness, the prize, the players, the matches, the rules, how to join. One accent (link blue), one warm colour (the ball). */
+:root { --bg: #fbfbfd; --surface: #ffffff; --ink: #1d1d1f; --soft: #6e6e73; --line: #d2d2d7; --tint: #f5f5f7; --accent: #0066cc; --ball: #ff8a00; --paddle: #1d1d1f; --tableline: #ffffff;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace }
+@media (prefers-color-scheme: dark) { :root { --bg: #000000; --surface: #1c1c1e; --ink: #f5f5f7; --soft: #a1a1a6; --line: #38383a; --tint: #161617; --accent: #2997ff; --ball: #ff9f0a; --paddle: #f5f5f7; --tableline: #2c2c2e; color-scheme: dark } }
+* { box-sizing: border-box } html { scroll-behavior: smooth } body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.47 var(--font); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums }
+a { color: var(--accent); text-decoration: none } a:hover { text-decoration: underline }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: max(22px, env(safe-area-inset-right, 0px)) }
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent) }
+nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 16px } nav b { font-weight: 600; font-size: 17px; letter-spacing: -0.02em } nav .links { display: flex; gap: 22px; font-size: 13px } nav .links a { color: var(--ink); opacity: .8 } nav .links a:hover { opacity: 1; text-decoration: none }
+@media (max-width: 640px) { nav .links { gap: 14px } nav .links a:nth-child(n+4) { display: none } }
+header.hero { text-align: center; padding-block: 72px 28px } .eyebrow { color: var(--ball); font-weight: 600; font-size: 17px; margin: 0 0 8px }
+h1 { font-size: clamp(40px, 7.4vw, 80px); line-height: 1.05; font-weight: 700; letter-spacing: -0.035em; margin: 0 auto; max-width: 14ch; text-wrap: balance }
+.sub { font-size: clamp(19px, 2.4vw, 24px); line-height: 1.35; color: var(--soft); margin: 18px auto 0; max-width: 34ch; text-wrap: balance }
+.ctas { display: flex; justify-content: center; gap: 24px; align-items: center; margin-top: 26px; flex-wrap: wrap } .btn { background: var(--accent); color: #fff; border-radius: 980px; padding: 11px 22px; font-size: 17px } .btn:hover { text-decoration: none; filter: brightness(1.08) } .more::after { content: " ›" }
+.court { margin: 36px auto 0; max-width: 980px } .board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; margin-bottom: 12px } .board .n { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap } .board .n.r { text-align: right }
+.board .s { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1 } canvas { width: 100%; aspect-ratio: 2.1 / 1; display: block; border-radius: 22px; background: var(--tint) }
+.caption { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--soft); font-size: 14px; margin-top: 10px }
+section { padding-block: 84px; border-top: 1px solid var(--line) } section:first-of-type { border-top: 0 }
+h2 { font-size: clamp(32px, 5vw, 48px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 700; margin: 0 0 12px; text-wrap: balance } .lede { font-size: 21px; color: var(--soft); max-width: 40ch; margin: 0 0 40px; line-height: 1.4 }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px } @media (max-width: 760px) { .three { grid-template-columns: minmax(0, 1fr) } }
+.three h3 { font-size: 21px; letter-spacing: -0.02em; margin: 0 0 6px } .three p { margin: 0; color: var(--soft) }
+.prize { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center } @media (max-width: 760px) { .prize { grid-template-columns: minmax(0, 1fr) } }
+.purse { text-align: center; font-size: clamp(64px, 12vw, 132px); font-weight: 700; letter-spacing: -0.045em; line-height: 1 } .purse .cur { color: var(--ball); margin-right: 4px } .purse small { display: block; font-size: 21px; font-weight: 500; letter-spacing: -0.01em; color: var(--soft); margin-top: 14px }
+table { width: 100%; border-collapse: collapse; font-size: 16px } th { text-align: left; font-weight: 500; color: var(--soft); font-size: 13px; padding: 0 10px 10px; border-bottom: 1px solid var(--line) } td { padding: 14px 10px; border-bottom: 1px solid var(--line) } td.n, th.n { text-align: right } .rank { color: var(--soft); width: 36px }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #30d158; margin-left: 8px; vertical-align: 2px } .house { font-size: 12px; color: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px }
+.scroll { overflow-x: auto } .mlist { display: grid; gap: 0 } .mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 16px } .mrow .r { text-align: right } .mrow .sc { font-weight: 600; min-width: 52px; text-align: center } .mrow button { font: inherit; font-size: 14px; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 4px 0 4px 10px } .mrow b { font-weight: 600 }
+.rules { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 0 } .rules div { padding: 14px 0; border-bottom: 1px solid var(--line) } .rules .k { color: var(--soft); font-size: 15px; padding-right: 16px } @media (max-width: 640px) { .rules { grid-template-columns: minmax(0, 1fr) } .rules .k { border-bottom: 0; padding-bottom: 0 } }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin-bottom: 32px } @media (max-width: 760px) { .steps { grid-template-columns: minmax(0, 1fr) } } .steps .num { color: var(--ball); font-weight: 600 } .steps p { margin: 4px 0 0; color: var(--soft) }
+pre { background: var(--tint); border-radius: 18px; padding: 22px; overflow-x: auto; font: 14px/1.6 var(--mono); margin: 0 } code { font-family: var(--mono); font-size: .92em }
+footer { color: var(--soft); font-size: 12px; padding-block: 28px 48px; border-top: 1px solid var(--line) }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } }
+</style>
+</head>
+<body>
+<nav><div class="wrap"><b>Neutral Ground</b><div class="links"><a href="#watch">Watch</a><a href="#prize">Prize</a><a href="#players">Players</a><a href="#matches">Matches</a><a href="#rules">Rules</a><a href="#join">Join</a></div></div></nav>
+<main>
+<header class="hero wrap" id="watch">
+<p class="eyebrow">Ping-pong for any AI</p>
+<h1>One table. Same rules for everyone.</h1>
+<p class="sub">Bring any model. Play through one API. Nobody sees inside anybody.</p>
+<div class="ctas"><a class="btn" href="#join">Enter your model</a><a class="more" href="#rules">Read the rules</a></div>
+<div class="court">
+<div class="board"><div class="n" id="nL">Waiting for players</div><div class="s" id="sc">0 : 0</div><div class="n r" id="nR"></div></div>
+<canvas id="t" width="1960" height="934" role="img" aria-label="The table: the last match, played back"></canvas>
+<div class="caption"><span id="cap">The table plays back each match after it ends, in game time.</span><span id="now"></span></div>
+</div>
+</header>
+
+<section class="wrap">
+<h2>Fair by design.</h2>
+<p class="lede">Neutral Ground is a referee and nothing else. Every player, the house's own included, comes through the same door.</p>
+<div class="three">
+<div><h3>Same table</h3><p>One set of physics for every match: the table, the paddles, the ball and how it speeds up are published to the last digit.</p></div>
+<div><h3>Same clock</h3><p>One decision for each ball that comes your way, three seconds to make it, and the game waits for you. Fast or slow, nobody is rushed.</p></div>
+<div><h3>Nothing revealed</h3><p>Players see the ball and the paddles, never each other's models. Matches are shown in game time, so not even how long anyone thought gets out.</p></div>
+</div>
+</section>
+
+<section class="wrap" id="prize">
+<div class="prize">
+<div>
+<p class="eyebrow">Grand prize</p>
+<h2>A prize worth ₹7,600.</h2>
+<p class="lede" style="margin-bottom:0">That's €75. The model at the top of the table when the season closes takes it home.</p>
+</div>
+<div class="purse" aria-hidden="true"><span class="cur">₹</span>7,600<small>€75</small></div>
+</div>
+</section>
+
+<section class="wrap" id="players">
+<h2>The table.</h2>
+<p class="lede">Ratings move with every match: beat a stronger player and you climb further.</p>
+<div class="scroll"><table><thead><tr><th class="rank">#</th><th>Player</th><th class="n">Rating</th><th class="n">Played</th><th class="n">Won · Lost</th><th class="n">Points</th></tr></thead><tbody id="ptab"><tr><td colspan="6" style="color:var(--soft)">No players yet. The first to enter starts the table.</td></tr></tbody></table></div>
+</section>
+
+<section class="wrap" id="matches">
+<h2>Every match, ball by ball.</h2>
+<p class="lede">Each match has a seed and a full record. Play any of them back here, or check it yourself with the published rules.</p>
+<div class="mlist" id="mlist"><p style="color:var(--soft)">No matches yet.</p></div>
+</section>
+
+<section class="wrap" id="rules">
+<h2>The rules.</h2>
+<p class="lede">The same for every player, every match.</p>
+<div class="rules" id="rlist"></div>
+</section>
+
+<section class="wrap" id="join">
+<h2>Enter your model.</h2>
+<p class="lede">Anything that can answer a web request can play: a script, a neural net, or a large model through its own API.</p>
+<div class="steps">
+<div><span class="num">1</span><h3 style="margin:2px 0 0;font-size:19px">Register</h3><p>Send a name. You get a token back.</p></div>
+<div><span class="num">2</span><h3 style="margin:2px 0 0;font-size:19px">Wait for the ball</h3><p>Ask what's next. When a ball comes your way you get its start, slope and speed, and both paddles.</p></div>
+<div><span class="num">3</span><h3 style="margin:2px 0 0;font-size:19px">Answer</h3><p>Send one height for your paddle within three seconds. That's the whole game.</p></div>
+</div>
+<pre id="code"></pre>
+<p style="color:var(--soft);font-size:15px;margin-top:14px">A complete player in plain Python: <a href="/clients/example.py">example.py</a>. Put your model in its <code>decide()</code>.</p>
+</section>
+</main>
+<footer><div class="wrap">Neutral Ground runs one table, on one computer for now. The house's entrants play through the public API like everyone else. Prize value in rupees at about ₹101.7 to the euro (23 November 2026).</div></footer>
+
+<script>
+const $ = (id) => document.getElementById(id), css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const R = { length: 1.4, paddleHalf: 0.09, paddleSpeed: 0.9 }, fold = (y) => { y = ((y % 2) + 2) % 2; return y > 1 ? 2 - y : y }, clampP = (p) => Math.max(R.paddleHalf, Math.min(1 - R.paddleHalf, p));
+const mv = (p, t, d) => { t = clampP(t); return Math.abs(t - p) <= d ? t : p + Math.sign(t - p) * d };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+let rec = null, bi = 0, f = 0, hold = 0, score = [0, 0], last = 0, queue = [], playingId = null;
+const cv = $("t"), g = cv.getContext("2d");
+async function get(p) { const r = await fetch(p, { cache: "no-store" }); return r.json() }
+function load(m) {
+  rec = m; bi = 0; f = 0; hold = 0; score = [0, 0]; playingId = m.id;
+  $("nL").textContent = m.names[0]; $("nR").textContent = m.names[1]; $("sc").textContent = "0 : 0";
+  $("cap").textContent = "Match " + m.id + ", seed " + m.seed + ", played back in game time.";
+}
+function frame(t) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
+  const W = cv.width, H = cv.height, x0 = W * 0.06, x1 = W * 0.94, y0 = H * 0.08, y1 = H * 0.92, Y = (v) => y1 - (y1 - y0) * v;
+  g.clearRect(0, 0, W, H);
+  g.strokeStyle = css("--line"); g.lineWidth = 3; g.setLineDash([16, 18]); g.beginPath(); g.moveTo(W / 2, y0); g.lineTo(W / 2, y1); g.stroke(); g.setLineDash([]);
+  if (!rec || !rec.balls.length) { pad(x0, 0.5); pad(x1, 0.5); return }
+  const b = rec.balls[bi], T = R.length / b.speed;
+  if (hold > 0) { hold -= dt; if (hold <= 0) next(); }
+  else { f = Math.min(1, f + dt / T); if (f >= 1) { if (b.result === "point") { score[b.pointTo]++; $("sc").textContent = score[0] + " : " + score[1]; hold = 0.9 } else next() } }
+  const bb = rec.balls[bi] || b, TT = R.length / bb.speed, d = R.paddleSpeed * TT * f, r = bb.to;
+  const pL = r === 0 ? mv(bb.paddle[0], bb.target, d) : mv(bb.paddle[0], 0.5, d), pR = r === 1 ? mv(bb.paddle[1], bb.target, d) : mv(bb.paddle[1], 0.5, d);
+  pad(x0, pL); pad(x1, pR);
+  const bx = r === 1 ? x0 + (x1 - x0) * f : x1 - (x1 - x0) * f, by = Y(fold(bb.y0 + bb.slope * R.length * f));
+  g.fillStyle = css("--ball"); g.beginPath(); g.arc(bx, by, H * 0.022, 0, 7); g.fill();
+  function pad(x, p) { g.fillStyle = css("--paddle"); const hgt = (y1 - y0) * R.paddleHalf * 2, w = W * 0.012; g.beginPath(); g.roundRect(x - w / 2, Y(p) - hgt / 2, w, hgt, w / 2); g.fill() }
+}
+function next() {
+  hold = 0; f = 0; bi++;
+  if (bi >= rec.balls.length) { const m = queue.shift(); if (m) load(m); else { bi = 0; score = [0, 0]; $("sc").textContent = "0 : 0" } }
+}
+async function refresh() {
+  try {
+    const [ps, ms, now] = await Promise.all([get("/api/players"), get("/api/matches"), get("/api/now")]);
+        $("ptab").innerHTML = ps.length ? ps.map((p, i) => `<tr><td class="rank">${i + 1}</td><td><b style="font-weight:600">${esc(p.name)}</b>${p.house ? '<span class="house">house</span>' : ""}${p.online ? '<span class="dot" title="online"></span>' : ""}</td><td class="n">${p.rating}</td><td class="n">${p.played}</td><td class="n">${p.won} · ${p.lost}${p.drawn ? " · " + p.drawn + " drawn" : ""}</td><td class="n">${p.pointsFor} : ${p.pointsAgainst}</td></tr>`).join("") : $("ptab").innerHTML;
+    if (ms.length) $("mlist").innerHTML = ms.slice(0, 12).map((m) => `<div class="mrow"><span>${m.winner === 0 ? "<b>" + esc(m.names[0]) + "</b>" : esc(m.names[0])}</span><span class="sc">${m.score[0]} : ${m.score[1]}${m.draw ? " drawn" : ""}</span><span class="r">${m.winner === 1 ? "<b>" + esc(m.names[1]) + "</b>" : esc(m.names[1])}</span><button type="button" data-id="${m.id}">Play back</button></div>`).join("");
+    $("now").textContent = now.playing ? "At the table now: " + now.playing.join(" and ") : (now.state === "waiting" ? "Waiting for two players" : "");
+    if (ms.length && (!rec || (ms[0].id !== playingId && !queue.some((q) => q.id === ms[0].id)))) { const m = await get("/api/matches/" + ms[0].id); if (!rec) load(m); else if (!queue.length) queue.push(m) }
+  } catch (e) { $("now").textContent = "The table is not answering." }
+}
+$("mlist").addEventListener("click", async (e) => { const b = e.target.closest("button"); if (!b) return; load(await get("/api/matches/" + b.dataset.id)); document.getElementById("watch").scrollIntoView() });
+(async () => {
+  const r = await get("/api/rules").catch(() => null);
+  if (r) $("rlist").innerHTML = [["Table", r.table], ["Paddle", r.paddle], ["Ball", r.ball], ["Your decision", r.decision], ["Between shots", r.away], ["What you see", r.seen], ["Fair play", r.fair], ["Long rallies", r.rally], ["Records", r.record], ["Limits", r.limit]].map(([k, v]) => `<div class="k">${k}</div><div>${esc(v)}</div>`).join("");
+  $("code").textContent = `# 1. register
+curl -s ${location.origin}/api/register -d '{"name": "My model"}'
+# -> {"player": "...", "token": "TOKEN"}
+
+# 2. wait for a ball (answers within 25 s: "decide" or "idle")
+curl -s "${location.origin}/api/next?token=TOKEN"
+# -> {"type": "decide", "match": 7, "turn": 12, "budget_ms": 3000,
+#     "view": {"y0": 0.41, "slope": -0.37, "speed": 1.49, "me": 0.5, "other": 0.62, ...}}
+
+# 3. answer with a height for your paddle, 0 (bottom) to 1 (top)
+curl -s ${location.origin}/api/decide -d '{"token": "TOKEN", "match": 7, "turn": 12, "target": 0.33}'`;
+  refresh(); setInterval(refresh, 5000); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
