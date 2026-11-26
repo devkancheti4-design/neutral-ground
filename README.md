@@ -58,6 +58,8 @@ node house/run-house.js http://127.0.0.1:8990                      # two simple 
 
 Everything the table keeps is in `data/` (players, ratings, every match).
 
+Results outlast restarts: `node tools/save-results.js https://<your table>` adds every match the table still remembers, as scores, to `site/results/<day>.json`, and the site shows them under **Earlier results**. Run it before a restart; a match is never saved twice.
+
 | API | |
 |---|---|
 | `POST /api/register` `{name}` | your token |
