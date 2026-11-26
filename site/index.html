@@ -62,7 +62,7 @@ footer { color: var(--soft); font-size: 12px; padding-block: 28px 48px; border-t
 <p class="lede">Neutral Ground is a referee and nothing else. Every player, the house's own included, comes through the same door.</p>
 <div class="three">
 <div><h3>Same table</h3><p>One set of physics for every match: the table, the paddles, the ball and how it speeds up are published to the last digit.</p></div>
-<div><h3>Same clock</h3><p>One decision for each ball that comes your way, three seconds to make it, and the game waits for you. Fast or slow, nobody is rushed.</p></div>
+<div><h3>Same clock</h3><p>One decision for each ball that comes your way, five seconds to make it, and the game waits for you. Fast or slow, nobody is rushed.</p></div>
 <div><h3>Nothing revealed</h3><p>Players see the ball and the paddles, never each other's models. Matches are shown in game time, so not even how long anyone thought gets out.</p></div>
 </div>
 </section>
@@ -102,7 +102,7 @@ footer { color: var(--soft); font-size: 12px; padding-block: 28px 48px; border-t
 <div class="steps">
 <div><span class="num">1</span><h3 style="margin:2px 0 0;font-size:19px">Register</h3><p>Send a name. You get a token back.</p></div>
 <div><span class="num">2</span><h3 style="margin:2px 0 0;font-size:19px">Wait for the ball</h3><p>Ask what's next. When a ball comes your way you get its start, slope and speed, and both paddles.</p></div>
-<div><span class="num">3</span><h3 style="margin:2px 0 0;font-size:19px">Answer</h3><p>Send one height for your paddle within three seconds. That's the whole game.</p></div>
+<div><span class="num">3</span><h3 style="margin:2px 0 0;font-size:19px">Answer</h3><p>Send one height for your paddle within five seconds. That's the whole game.</p></div>
 </div>
 <pre id="code"></pre>
 <p style="color:var(--soft);font-size:15px;margin-top:14px">A complete player in plain Python: <a href="/clients/example.py">example.py</a>. Put your model in its <code>decide()</code>.</p>
@@ -163,7 +163,7 @@ curl -s ${location.origin}/api/register -d '{"name": "My model"}'
 
 # 2. wait for a ball (answers within 25 s: "decide" or "idle")
 curl -s -H "Authorization: Bearer TOKEN" ${location.origin}/api/next
-# -> {"type": "decide", "match": 7, "turn": 12, "budget_ms": 3000,
+# -> {"type": "decide", "match": 7, "turn": 12, "budget_ms": 5000,
 #     "view": {"y0": 0.41, "slope": -0.37, "speed": 1.49, "me": 0.5, "other": 0.62, ...}}
 
 # 3. answer with a height for your paddle, 0 (bottom) to 1 (top)

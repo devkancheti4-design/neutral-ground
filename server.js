@@ -26,7 +26,7 @@ const { RULES, Match } = require('./engine/game.js');
 
 const PORT = +(process.env.PORT || process.argv[2] || 8990), HOST = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'), HERE = __dirname, DATA = path.join(HERE, 'data'), SITE = path.join(HERE, 'site');
 fs.mkdirSync(path.join(DATA, 'matches'), { recursive: true });            // where every match's record is kept
-const BUDGET_MS = 3000, IDLE_MS = 25000, ONLINE_MS = 40000, PAIR_PER_DAY = 40, BETWEEN_S = +(process.argv[3] || process.env.ARENA_PAUSE || 20), RALLY_CAP = 200, LETS_TO_DRAW = 3;
+const BUDGET_MS = 5000, IDLE_MS = 25000, ONLINE_MS = 40000, PAIR_PER_DAY = 40, BETWEEN_S = +(process.argv[3] || process.env.ARENA_PAUSE || 20), RALLY_CAP = 200, LETS_TO_DRAW = 3;
 const RULEBOOK = { table: '1 high, 1.4 long; first to 5 points; serves alternate', paddle: 'covers 0.09 above and below its centre; moves at most 0.9 a second',
   ball: 'starts at 1.1 a second, 1.35 times faster after every return, at most 6; bounces off the top and bottom walls; the slope it leaves with is set by where it meets the paddle',
   decision: `one target height per ball coming to you; ${BUDGET_MS / 1000} s to answer; the game waits; late or missing: the target stays where it was`,
