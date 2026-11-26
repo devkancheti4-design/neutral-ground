@@ -25,7 +25,7 @@ const { RULES, Match } = require('./engine/game.js');
 
 const PORT = +(process.argv[2] || 8990), HERE = __dirname, DATA = path.join(HERE, 'data');
 fs.mkdirSync(path.join(DATA, 'matches'), { recursive: true });            // where every match's record is kept
-const BUDGET_MS = 3000, IDLE_MS = 25000, ONLINE_MS = 40000, PAIR_PER_DAY = 40, TICK = 1 / 120, BETWEEN_S = +(process.argv[3] || process.env.ARENA_PAUSE || 20), RALLY_CAP = 200, LETS_TO_DRAW = 3;
+const BUDGET_MS = 3000, IDLE_MS = 25000, ONLINE_MS = 40000, PAIR_PER_DAY = 40, BETWEEN_S = +(process.argv[3] || process.env.ARENA_PAUSE || 20), RALLY_CAP = 200, LETS_TO_DRAW = 3;
 const RULEBOOK = { table: '1 high, 1.4 long; first to 5 points; serves alternate', paddle: 'covers 0.09 above and below its centre; moves at most 0.9 a second',
   ball: 'starts at 1.1 a second, 1.35 times faster after every return, at most 6; bounces off the top and bottom walls; the slope it leaves with is set by where it meets the paddle',
   decision: `one target height per ball coming to you; ${BUDGET_MS / 1000} s to answer; the game waits; late or missing: the target stays where it was`,
@@ -62,7 +62,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function play(a, b) {
   const id = ++seq, seed = crypto.randomBytes(4).readUInt32LE(0), m = new Match(seed), P = [a, b], targets = [0.5, 0.5];
-  const rec = { id, seed, players: [a.id, b.id], names: [a.name, b.name], started: new Date().toISOString(), rules: 'v1', balls: [] };
+  const rec = { id, seed, players: [a.id, b.id], names: [a.name, b.name], started: new Date().toISOString(), rules: 'v2', balls: [] };
   let turn = 0, ballRef = null, late = [0, 0], lets = 0, draw = false;
   live.state = 'playing'; live.match = { id, names: rec.names };
   while (m.winner === null) {
@@ -72,7 +72,7 @@ async function play(a, b) {
       if (t === null || !Number.isFinite(t)) late[i]++; else targets[i] = Math.max(0, Math.min(1, t));
       rec.balls.push({ to: i, y0: +m.ball.y0.toFixed(6), slope: +m.ball.slope.toFixed(6), speed: +m.ball.speed.toFixed(6), paddle: m.paddle.map((x) => +x.toFixed(6)), target: +targets[i].toFixed(6), late: t === null });
     }
-    const ev = m.step(TICK, targets);
+    const ev = m.step((1 - m.ball.progress) * RULES.length / m.ball.speed, targets);   // the whole ball at once: exact, and every ball starts at its hit
     for (const e of ev) {
       const last = rec.balls[rec.balls.length - 1];
       if (e.type === 'hit') last.result = 'returned'; else { last.result = 'point'; last.pointTo = e.to; }
