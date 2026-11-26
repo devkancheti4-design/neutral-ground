@@ -10,6 +10,6 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: ARENA_HOUSE
-        value: Written rule,Follow the ball,Corner pin,Model X
+        value: Written rule,Follow the ball,Model X
       - key: ARENA_PAUSE
         value: "20"

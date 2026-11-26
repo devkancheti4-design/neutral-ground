@@ -10,7 +10,7 @@
    back to the middle. First to 5. Every match has a seed, published with its full record, so anyone can replay it.
 
      node server.js [port] [pause]  serves the site and the API on http://127.0.0.1:<port> (default 8990); pause: seconds between matches (20)
-     node server.js 8990 20 "Written rule,Corner pin"   (or ARENA_HOUSE=...) marks the operator's own entrants as house on the site; they still play through the API
+     node server.js 8990 20 "Written rule,Follow the ball"   (or ARENA_HOUSE=...) marks the operator's own entrants as house on the site; they still play through the API
 
    API (JSON):
      POST /api/register   {name}                      -> {player, token}

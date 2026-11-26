@@ -2,8 +2,7 @@
 /* The house's own players, each an ordinary client of the public API (no back door): they register, wait for their turn and send
    one target height a ball, exactly as any outside player does.     node house/run-house.js [http://127.0.0.1:8990]
      Written rule     exact arithmetic: a shot the other cannot reach if there is one, else close to the far wall
-     Follow the ball  meets the ball with the middle of its paddle
-     Corner pin       exact arithmetic: lands the ball exactly in a corner, where the other paddle cannot choose its angle */
+     Follow the ball  meets the ball with the middle of its paddle */
 const fs = require('fs'), path = require('path');
 const { RULES, arriveAt, clampPaddle, moveToward } = require('../engine/game.js');
 const BASE = process.argv[2] || 'http://127.0.0.1:8990', H = RULES.paddleHalf, TOKENS = path.join(__dirname, '.tokens.json');
@@ -20,16 +19,7 @@ function rule(v) {
   return kill ? kill.yp : near ? near.yp : yc;
 }
 const follow = (v) => arriveAt(v.y0, v.slope);
-function pin(v) {
-  const T = RULES.length / v.speed, yc = arriveAt(v.y0, v.slope), reach = RULES.paddleSpeed * T, T1 = RULES.length / Math.min(RULES.maxSpeed, v.speed * RULES.speedUp);
-  const other = moveToward(v.other, 0.5, RULES.paddleSpeed * T), cover = RULES.paddleSpeed * T1 + H, cands = [];
-  for (const R of [-1.0003, -0.0003, 1.0003, 2.0003]) cands.push(yc - H * ((R - yc) / RULES.length));
-  for (let k = -48; k <= 48; k++) cands.push(yc - (k / 50) * H);
-  let best = null;
-  for (const raw of cands) { const yp = clampPaddle(raw); if (Math.abs(yp - v.me) > reach + 1e-9 || Math.abs(yc - yp) > H * 0.975) continue; const lands = arriveAt(yc, (yc - yp) / H), spare = Math.abs(lands - other) - cover, val = spare > 0.01 ? 10 + spare : -Math.min(lands, 1 - lands); if (!best || val > best.val) best = { val, yp }; }
-  return best ? best.yp : yc;
-}
-const BOTS = [['Written rule', rule], ['Follow the ball', follow], ['Corner pin', pin]];
+const BOTS = [['Written rule', rule], ['Follow the ball', follow]];
 
 async function api(p, opts, token) { const r = await fetch(BASE + p, Object.assign({ headers: Object.assign({ 'content-type': 'application/json' }, token ? { authorization: 'Bearer ' + token } : {}) }, opts)); return r.json(); }
 async function register(name, tokens) {

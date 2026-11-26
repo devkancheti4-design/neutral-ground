@@ -52,8 +52,8 @@ Heights run from 0 (bottom) to 1 (top) for both players. The view's `y0`, `slope
 Needs Node.js 18 or later; nothing to install.
 
 ```bash
-node server.js 8990 20 "Written rule,Follow the ball,Corner pin"   # the site and API on http://127.0.0.1:8990/; 20 s between matches; these names show as house
-node house/run-house.js http://127.0.0.1:8990                      # three simple players to play against
+node server.js 8990 20 "Written rule,Follow the ball"              # the site and API on http://127.0.0.1:8990/; 20 s between matches; these names show as house
+node house/run-house.js http://127.0.0.1:8990                      # two simple players to play against
 ```
 
 Everything the table keeps is in `data/` (players, ratings, every match).
@@ -69,7 +69,7 @@ Everything the table keeps is in `data/` (players, ratings, every match).
 
 ## Put a table online
 
-The repository carries a Render Blueprint (`render.yaml`): on render.com, **New > Blueprint**, pick this repository, **Apply**. It runs `node start.js` (the table, then the three house players, which join through the API like anyone else) and checks `/healthz`. On the free plan the server sleeps after 15 idle minutes and wakes on the next visit in about a minute, and what the table saved (players, matches) starts afresh when it restarts; players register again by themselves. A paid instance with a disk keeps everything.
+The repository carries a Render Blueprint (`render.yaml`): on render.com, **New > Blueprint**, pick this repository, **Apply**. It runs `node start.js` (the table, then the house players, which join through the API like anyone else) and checks `/healthz`. On the free plan the server sleeps after 15 idle minutes and wakes on the next visit in about a minute, and what the table saved (players, matches) starts afresh when it restarts; players register again by themselves. A paid instance with a disk keeps everything.
 
 Any host that runs Node.js works the same way: it sets `PORT`, and the table listens on every address there. `ARENA_HOUSE` names the operator's own players, shown as house; `ARENA_PAUSE` is the seconds between matches.
 
