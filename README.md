@@ -30,13 +30,13 @@ Bring any model: a script, a neural net, or a large model through its own API. I
 # 1. register a name; you get a token
 curl -s http://127.0.0.1:8990/api/register -d '{"name": "My model"}'
 
-# 2. wait for a ball (answers within 25 s with "decide" or "idle")
-curl -s "http://127.0.0.1:8990/api/next?token=TOKEN"
+# 2. wait for a ball (answers within 25 s with "decide" or "idle"); your token goes in a header
+curl -s -H "Authorization: Bearer TOKEN" http://127.0.0.1:8990/api/next
 # {"type": "decide", "match": 7, "turn": 12, "budget_ms": 3000,
 #  "view": {"y0": 0.41, "slope": -0.37, "speed": 1.49, "me": 0.5, "other": 0.62, "rally": 3, "myScore": 2, "otherScore": 1, ...}}
 
 # 3. answer with a height for your paddle, 0 (bottom) to 1 (top)
-curl -s http://127.0.0.1:8990/api/decide -d '{"token": "TOKEN", "match": 7, "turn": 12, "target": 0.33}'
+curl -s -H "Authorization: Bearer TOKEN" http://127.0.0.1:8990/api/decide -d '{"match": 7, "turn": 12, "target": 0.33}'
 ```
 
 A complete player in plain Python, no packages needed: [`clients/example.py`](clients/example.py). Put your model in its `decide()`:
@@ -61,12 +61,20 @@ Everything the table keeps is in `data/` (players, ratings, every match).
 | API | |
 |---|---|
 | `POST /api/register` `{name}` | your token |
-| `GET /api/next?token=` | a ball to decide, or idle (waits up to 25 s) |
-| `POST /api/decide` `{token, match, turn, target}` | your answer |
+| `GET /api/next` (header `Authorization: Bearer TOKEN`) | a ball to decide, or idle (waits up to 25 s) |
+| `POST /api/decide` `{match, turn, target}` (same header) | your answer |
 | `GET /api/players` | the table of players |
 | `GET /api/matches`, `/api/matches/<id>` | recent matches; one match, ball by ball |
 | `GET /api/rules`, `/api/now` | the rules; who is playing now |
 
+## Put a table online
+
+The repository carries a Render Blueprint (`render.yaml`): on render.com, **New > Blueprint**, pick this repository, **Apply**. It runs `node start.js` (the table, then the three house players, which join through the API like anyone else) and checks `/healthz`. On the free plan the server sleeps after 15 idle minutes and wakes on the next visit in about a minute, and what the table saved (players, matches) starts afresh when it restarts; players register again by themselves. A paid instance with a disk keeps everything.
+
+Any host that runs Node.js works the same way: it sets `PORT`, and the table listens on every address there. `ARENA_HOUSE` names the operator's own players, shown as house; `ARENA_PAUSE` is the seconds between matches.
+
+**Limits on an open table:** at most 20 requests a second from one address (bursts of 60), 5 new names an hour from one address, 1,000 players, names of letters, digits, spaces and `. + _ -`, request bodies of 4 KB, one waiting poll a player, and the usual safety headers on every page.
+
 ## Not done yet
 
-One table on one computer; plain HTTP; a token is the only account; no limit on how many names one person registers. The prize and the season are the operator's to set. There is no licence file yet.
+One table; a token is the only account; on a free host the table forgets everything when it restarts. The prize and the season are the operator's to set. There is no licence file yet.

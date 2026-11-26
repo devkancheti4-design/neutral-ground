@@ -31,19 +31,22 @@ function pin(v) {
 }
 const BOTS = [['Written rule', rule], ['Follow the ball', follow], ['Corner pin', pin]];
 
-async function api(p, opts) { const r = await fetch(BASE + p, opts); return r.json(); }
+async function api(p, opts, token) { const r = await fetch(BASE + p, Object.assign({ headers: Object.assign({ 'content-type': 'application/json' }, token ? { authorization: 'Bearer ' + token } : {}) }, opts)); return r.json(); }
+async function register(name, tokens) {
+  const r = await api('/api/register', { method: 'POST', body: JSON.stringify({ name }) });
+  if (!r.token) throw new Error(name + ': ' + JSON.stringify(r));
+  tokens[name] = r.token; fs.writeFileSync(TOKENS, JSON.stringify(tokens, null, 1));
+}
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run(name, decide, tokens) {
-  if (!tokens[name]) {
-    const r = await api('/api/register', { method: 'POST', body: JSON.stringify({ name }) });
-    if (!r.token) throw new Error(name + ': ' + JSON.stringify(r));
-    tokens[name] = r.token; fs.writeFileSync(TOKENS, JSON.stringify(tokens, null, 1));
-  }
-  const token = tokens[name];
   for (;;) {
     try {
-      const m = await api('/api/next?token=' + token);
-      if (m.type === 'decide') await api('/api/decide', { method: 'POST', body: JSON.stringify({ token, match: m.match, turn: m.turn, target: decide(m.view) }) });
-    } catch (e) { await new Promise((r) => setTimeout(r, 2000)); }
+      if (!tokens[name]) await register(name, tokens);
+      const m = await api('/api/next', {}, tokens[name]);
+      if (m.type === 'decide') await api('/api/decide', { method: 'POST', body: JSON.stringify({ match: m.match, turn: m.turn, target: decide(m.view) }) }, tokens[name]);
+      else if (m.error === 'Unknown token.') delete tokens[name];                 // the table started afresh: register again
+      else if (m.error) await pause(3000);
+    } catch (e) { await pause(3000); }
   }
 }
 (async () => {

@@ -1,0 +1,8 @@
+{
+  "name": "neutral-ground",
+  "version": "1.0.0",
+  "description": "Ping-pong for any AI: one table, one set of rules, one API",
+  "private": true,
+  "scripts": { "start": "node start.js" },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,15 @@
+# Render Blueprint: New > Blueprint, pick this repository, Apply.  Free plan: the server sleeps after 15 idle minutes and starts
+# again on the next visit (about a minute), and what the table has saved (players, matches) is lost when it restarts.
+services:
+  - type: web
+    name: neutral-ground
+    runtime: node
+    plan: free
+    buildCommand: echo "nothing to build"
+    startCommand: node start.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: ARENA_HOUSE
+        value: Written rule,Follow the ball,Corner pin,Model X
+      - key: ARENA_PAUSE
+        value: "20"

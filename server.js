@@ -14,8 +14,8 @@
 
    API (JSON):
      POST /api/register   {name}                      -> {player, token}
-     GET  /api/next?token=T                           -> {type:"decide", match, turn, view, budget_ms} | {type:"idle"}   (waits up to 25 s)
-     POST /api/decide     {token, match, turn, target}-> {ok:true}
+     GET  /api/next        (header Authorization: Bearer T) -> {type:"decide", match, turn, view, budget_ms} | {type:"idle"}   (waits up to 25 s)
+     POST /api/decide     {match, turn, target}  (the same header) -> {ok:true}
      GET  /api/players                                -> the table of players
      GET  /api/matches                                -> recent matches;  GET /api/matches/<id> -> one match, every ball
      GET  /api/rules                                  -> the rules;       GET /api/now -> who is at the table now
@@ -23,7 +23,7 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { RULES, Match } = require('./engine/game.js');
 
-const PORT = +(process.argv[2] || 8990), HERE = __dirname, DATA = path.join(HERE, 'data');
+const PORT = +(process.env.PORT || process.argv[2] || 8990), HOST = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'), HERE = __dirname, DATA = path.join(HERE, 'data'), SITE = path.join(HERE, 'site');
 fs.mkdirSync(path.join(DATA, 'matches'), { recursive: true });            // where every match's record is kept
 const BUDGET_MS = 3000, IDLE_MS = 25000, ONLINE_MS = 40000, PAIR_PER_DAY = 40, BETWEEN_S = +(process.argv[3] || process.env.ARENA_PAUSE || 20), RALLY_CAP = 200, LETS_TO_DRAW = 3;
 const RULEBOOK = { table: '1 high, 1.4 long; first to 5 points; serves alternate', paddle: 'covers 0.09 above and below its centre; moves at most 0.9 a second',
@@ -39,7 +39,8 @@ const save = (f, v) => fs.writeFileSync(path.join(DATA, f), JSON.stringify(v));
 const players = load('players.json', {});            // id -> {id, name, token, rating, played, won, lost, pointsFor, pointsAgainst, joined}
 const matches = load('matches.json', []);            // recent matches, newest first (the records are in data/matches/)
 let seq = matches.length ? Math.max(...matches.map((m) => m.id)) : 0;
-const byToken = () => Object.fromEntries(Object.values(players).map((p) => [p.token, p]));
+const TOKENS = new Map(Object.values(players).map((p) => [p.token, p]));
+const who = (req, u, b) => TOKENS.get(((req.headers.authorization || '').replace(/^Bearer\s+/i, '')) || (b && b.token) || u.searchParams.get('token') || '');
 const HOUSE = new Set((process.argv[4] || process.env.ARENA_HOUSE || '').split(',').map((x) => x.trim()).filter(Boolean));
 const pub = (p) => ({ id: p.id, name: p.name, house: HOUSE.has(p.name), rating: Math.round(p.rating), played: p.played, won: p.won, lost: p.lost, drawn: p.drawn || 0, pointsFor: p.pointsFor, pointsAgainst: p.pointsAgainst, online: online(p), joined: p.joined });
 const seen = {}, waiting = {}, pending = {};          // last poll; a poll waiting for a decision; a decision waiting for an answer
@@ -127,33 +128,52 @@ function pick() {
 
 /* ---- the web ---- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.py': 'text/plain; charset=utf-8' };
-const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(obj)); };
-function body(req) { return new Promise((resolve) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => { try { resolve(JSON.parse(s || '{}')); } catch (e) { resolve(null); } }); }); }
+const SAFE = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY',
+  'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" };
+const send = (res, code, obj) => { if (res.headersSent) return; res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, SAFE)); res.end(JSON.stringify(obj)); };
+function body(req) { return new Promise((resolve) => { let s = '', big = false; req.on('data', (c) => { s += c; if (s.length > 4096) { big = true; req.destroy(); resolve(null); } }); req.on('end', () => { if (big) return; try { resolve(JSON.parse(s || '{}')); } catch (e) { resolve(null); } }); }); }
+/* limits for everyone, by address: a steady flow of requests, a few new names an hour, one waiting poll a player */
+const MAX_PLAYERS = 1000, NAMES_PER_HOUR = 5, RATE = 20, BURST = 60;
+const buckets = new Map(), names = new Map();
+const addr = (req) => { const f = String(req.headers['x-forwarded-for'] || ''); return (f ? f.split(',').pop() : String(req.socket.remoteAddress || '')).trim(); };   // the last hop: the address the host's own proxy saw
+function allowed(ip) {
+  const now = Date.now() / 1000, b = buckets.get(ip) || { t: now, n: BURST };
+  b.n = Math.min(BURST, b.n + (now - b.t) * RATE); b.t = now;
+  if (buckets.size > 50000) buckets.clear();
+  buckets.set(ip, b); if (b.n < 1) return false; b.n -= 1; return true;
+}
+const NAME_OK = /^[A-Za-z0-9][A-Za-z0-9 .+_-]{0,39}$/;
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, 'http://x'), p = u.pathname;
+  const u = new URL(req.url, 'http://x'), p = u.pathname, ip = addr(req);
   try {
+    if (p === '/healthz') return send(res, 200, { ok: true });
+    if (p.startsWith('/api/') && !allowed(ip)) return send(res, 429, { error: 'Too many requests. Slow down.' });
     if (p === '/api/register' && req.method === 'POST') {
-      const b = await body(req); const name = String((b && b.name) || '').trim().slice(0, 40);
-      if (!name) return send(res, 400, { error: 'Give your player a name.' });
+      const b = await body(req); const name = String((b && b.name) || '').trim().replace(/\s+/g, ' ');
+      if (!NAME_OK.test(name)) return send(res, 400, { error: 'A name is 1 to 40 letters, digits, spaces or . + _ -, starting with a letter or digit.' });
       if (Object.values(players).some((x) => x.name.toLowerCase() === name.toLowerCase())) return send(res, 409, { error: 'That name is taken. Pick another.' });
+      if (Object.keys(players).length >= MAX_PLAYERS) return send(res, 503, { error: 'The table is full for now.' });
+      const h = Math.floor(Date.now() / 3600000), k = ip + '|' + h; if ((names.get(k) || 0) >= NAMES_PER_HOUR) return send(res, 429, { error: 'Too many new names from your address this hour.' });
+      names.set(k, (names.get(k) || 0) + 1); if (names.size > 50000) names.clear();
       const id = crypto.randomBytes(4).toString('hex'), token = crypto.randomBytes(16).toString('hex');
       players[id] = { id, name, token, rating: 1200, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0, joined: new Date().toISOString() };
-      save('players.json', players);
+      TOKENS.set(token, players[id]); save('players.json', players);
       return send(res, 200, { player: id, token, rules: RULEBOOK });
     }
     if (p === '/api/next') {
-      const me = byToken()[u.searchParams.get('token')];
+      const me = who(req, u, null);
       if (!me) return send(res, 401, { error: 'Unknown token.' });
       seen[me.id] = Date.now();
       const d = pending[me.id];
       if (d && !d.done) return send(res, 200, { type: 'decide', match: d.match, turn: d.turn, view: d.view, budget_ms: BUDGET_MS });
+      const old = waiting[me.id]; if (old) old({ type: 'idle' });          // one waiting poll a player: an older one is answered now
       const t = setTimeout(() => { if (waiting[me.id] === f) delete waiting[me.id]; send(res, 200, { type: 'idle' }); }, IDLE_MS);
-      const f = (msg) => { clearTimeout(t); seen[me.id] = Date.now(); send(res, 200, msg); };
+      const f = (msg) => { clearTimeout(t); if (waiting[me.id] === f) delete waiting[me.id]; seen[me.id] = Date.now(); send(res, 200, msg); };
       waiting[me.id] = f; req.on('close', () => { if (waiting[me.id] === f) { delete waiting[me.id]; clearTimeout(t); } });
       return;
     }
     if (p === '/api/decide' && req.method === 'POST') {
-      const b = await body(req); const me = b && byToken()[b.token];
+      const b = await body(req); const me = who(req, u, b);
       if (!me) return send(res, 401, { error: 'Unknown token.' });
       seen[me.id] = Date.now();
       const d = pending[me.id];
@@ -163,15 +183,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/players') return send(res, 200, Object.values(players).map(pub).sort((x, y) => y.rating - x.rating));
     if (p === '/api/matches') return send(res, 200, matches.slice(0, 100));
-    if (p.startsWith('/api/matches/')) { const id = parseInt(p.split('/')[3], 10); const f = path.join(DATA, 'matches', id + '.json'); return fs.existsSync(f) ? send(res, 200, JSON.parse(fs.readFileSync(f, 'utf8'))) : send(res, 404, { error: 'No such match.' }); }
+    if (/^\/api\/matches\/\d{1,9}$/.test(p)) { const f = path.join(DATA, 'matches', parseInt(p.split('/')[3], 10) + '.json'); return fs.existsSync(f) ? send(res, 200, JSON.parse(fs.readFileSync(f, 'utf8'))) : send(res, 404, { error: 'No such match.' }); }
     if (p === '/api/rules') return send(res, 200, RULEBOOK);
     if (p === '/api/now') return send(res, 200, { state: live.state, playing: live.match ? live.match.names : null, players: Object.values(players).length, matches: seq });
-    // the site
-    let f = path.normalize(path.join(HERE, 'site', p === '/' ? 'index.html' : p));
-    if (p === '/clients/example.py') f = path.join(HERE, 'clients', 'example.py');
-    if (!f.startsWith(path.join(HERE, 'site')) && !f.endsWith('example.py')) return send(res, 404, { error: 'Not found.' });
+    if (p.startsWith('/api/')) return send(res, 404, { error: 'No such call.' });
+    // the site: only files inside site/, and the example player
+    let f = p === '/clients/example.py' ? path.join(HERE, 'clients', 'example.py') : path.normalize(path.join(SITE, p === '/' ? 'index.html' : p));
+    if (p !== '/clients/example.py' && !f.startsWith(SITE + path.sep)) return send(res, 404, { error: 'Not found.' });
     if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) return send(res, 404, { error: 'Not found.' });
-    res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(res);
+    res.writeHead(200, Object.assign({ 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': 'public, max-age=300' }, SAFE)); fs.createReadStream(f).pipe(res);
   } catch (e) { console.error(e); send(res, 500, { error: 'Something went wrong on the table.' }); }
 });
-server.listen(PORT, '127.0.0.1', () => console.log(`Neutral Ground on http://127.0.0.1:${PORT}/`));
+server.listen(PORT, HOST, () => console.log(`Neutral Ground on http://${HOST}:${PORT}/`));

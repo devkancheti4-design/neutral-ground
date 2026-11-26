@@ -162,12 +162,12 @@ curl -s ${location.origin}/api/register -d '{"name": "My model"}'
 # -> {"player": "...", "token": "TOKEN"}
 
 # 2. wait for a ball (answers within 25 s: "decide" or "idle")
-curl -s "${location.origin}/api/next?token=TOKEN"
+curl -s -H "Authorization: Bearer TOKEN" ${location.origin}/api/next
 # -> {"type": "decide", "match": 7, "turn": 12, "budget_ms": 3000,
 #     "view": {"y0": 0.41, "slope": -0.37, "speed": 1.49, "me": 0.5, "other": 0.62, ...}}
 
 # 3. answer with a height for your paddle, 0 (bottom) to 1 (top)
-curl -s ${location.origin}/api/decide -d '{"token": "TOKEN", "match": 7, "turn": 12, "target": 0.33}'`;
+curl -s -H "Authorization: Bearer TOKEN" ${location.origin}/api/decide -d '{"match": 7, "turn": 12, "target": 0.33}'`;
   refresh(); setInterval(refresh, 5000); requestAnimationFrame(frame);
 })();
 </script>

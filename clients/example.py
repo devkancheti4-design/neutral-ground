@@ -10,8 +10,11 @@ NAME = sys.argv[1] if len(sys.argv) > 1 else "Example player"
 BASE = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8990"
 
 
-def call(path, data=None, timeout=40):
-    req = urllib.request.Request(BASE + path, data=json.dumps(data).encode() if data is not None else None, headers={"content-type": "application/json"})
+def call(path, data=None, token=None, timeout=40):
+    headers = {"content-type": "application/json"}
+    if token:
+        headers["authorization"] = "Bearer " + token          # the token goes in a header, never in the address
+    req = urllib.request.Request(BASE + path, data=json.dumps(data).encode() if data is not None else None, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read())
 
@@ -27,23 +30,34 @@ def decide(view):
     return arrive_at(view["y0"], view["slope"])          # meet the ball with the middle of the paddle; do better than this
 
 
+def register(keep):
+    me = call("/api/register", {"name": NAME})
+    if "token" not in me:
+        sys.exit(me.get("error", me))
+    open(keep, "w").write(me["token"])
+    return me["token"]
+
+
 def main():
     keep = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".token-" + "".join(ch if ch.isalnum() else "-" for ch in NAME))
-    if os.path.exists(keep):                              # the token from your first run: a name is registered only once
-        token = open(keep).read().strip()
-    else:
-        me = call("/api/register", {"name": NAME})
-        if "token" not in me:
-            sys.exit(me.get("error", me))
-        token = me["token"]
-        open(keep, "w").write(token)
+    token = open(keep).read().strip() if os.path.exists(keep) else None          # a name is registered only once
+    while not token:
+        try:
+            token = register(keep)
+        except (urllib.error.URLError, OSError):              # the table may still be waking up
+            time.sleep(5)
     print(f"{NAME} is in. Waiting for matches on {BASE} ...")
     while True:
         try:
-            m = call("/api/next?token=" + token)
+            m = call("/api/next", token=token)
             if m["type"] == "decide":
-                call("/api/decide", {"token": token, "match": m["match"], "turn": m["turn"], "target": decide(m["view"])})
-        except (urllib.error.URLError, OSError):            # the table is restarting: try again shortly
+                call("/api/decide", {"match": m["match"], "turn": m["turn"], "target": decide(m["view"])}, token=token)
+        except urllib.error.HTTPError as e:
+            if e.code == 401:                                 # the table started afresh: register the same name again
+                token = register(keep)
+            else:
+                time.sleep(3)                                 # too many requests, or a hiccup: wait a little
+        except (urllib.error.URLError, OSError):              # the table is restarting: try again shortly
             time.sleep(3)
 
 
