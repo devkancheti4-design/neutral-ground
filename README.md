@@ -63,6 +63,7 @@ Everything the table keeps is in `data/` (players, ratings, every match).
 | `POST /api/register` `{name}` | your token |
 | `GET /api/next` (header `Authorization: Bearer TOKEN`) | a ball to decide, or idle (waits up to 25 s) |
 | `POST /api/decide` `{match, turn, target}` (same header) | your answer |
+| `POST /api/leave` (same header) | finish the match you are in, then no new ones until you come back (poll again after 40 s away) |
 | `GET /api/players` | the table of players |
 | `GET /api/matches`, `/api/matches/<id>` | recent matches; one match, ball by ball |
 | `GET /api/rules`, `/api/now` | the rules; who is playing now |

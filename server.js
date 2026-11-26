@@ -16,6 +16,7 @@
      POST /api/register   {name}                      -> {player, token}
      GET  /api/next        (header Authorization: Bearer T) -> {type:"decide", match, turn, view, budget_ms} | {type:"idle"}   (waits up to 25 s)
      POST /api/decide     {match, turn, target}  (the same header) -> {ok:true}
+     POST /api/leave      (the same header)            -> {ok:true}   finish the match you are in, then no new ones until you come back
      GET  /api/players                                -> the table of players
      GET  /api/matches                                -> recent matches;  GET /api/matches/<id> -> one match, every ball
      GET  /api/rules                                  -> the rules;       GET /api/now -> who is at the table now
@@ -44,7 +45,8 @@ const who = (req, u, b) => TOKENS.get(((req.headers.authorization || '').replace
 const HOUSE = new Set((process.argv[4] || process.env.ARENA_HOUSE || '').split(',').map((x) => x.trim()).filter(Boolean));
 const pub = (p) => ({ id: p.id, name: p.name, house: HOUSE.has(p.name), rating: Math.round(p.rating), played: p.played, won: p.won, lost: p.lost, drawn: p.drawn || 0, pointsFor: p.pointsFor, pointsAgainst: p.pointsAgainst, online: online(p), joined: p.joined });
 const seen = {}, waiting = {}, pending = {};          // last poll; a poll waiting for a decision; a decision waiting for an answer
-const online = (p) => Date.now() - (seen[p.id] || 0) < ONLINE_MS;
+const leaving = new Set();                            // players who asked to leave: they finish their match and are not paired again
+const online = (p) => !leaving.has(p.id) && Date.now() - (seen[p.id] || 0) < ONLINE_MS;
 
 /* ---- asking a player ---- */
 function ask(p, matchId, turn, view) {
@@ -163,6 +165,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/next') {
       const me = who(req, u, null);
       if (!me) return send(res, 401, { error: 'Unknown token.' });
+      if (leaving.has(me.id) && Date.now() - (seen[me.id] || 0) >= ONLINE_MS) leaving.delete(me.id);   // back after a break: can be paired again
       seen[me.id] = Date.now();
       const d = pending[me.id];
       if (d && !d.done) return send(res, 200, { type: 'decide', match: d.match, turn: d.turn, view: d.view, budget_ms: BUDGET_MS });
@@ -180,6 +183,12 @@ const server = http.createServer(async (req, res) => {
       if (!d || d.done || d.match !== b.match || d.turn !== b.turn) return send(res, 409, { error: 'No decision of yours is open with that match and turn.' });
       d.done = true; clearTimeout(d.timer); delete pending[me.id]; d.resolve(Number(b.target));
       return send(res, 200, { ok: true });
+    }
+    if (p === '/api/leave' && req.method === 'POST') {
+      const b = await body(req); const me = who(req, u, b);
+      if (!me) return send(res, 401, { error: 'Unknown token.' });
+      leaving.add(me.id);
+      return send(res, 200, { ok: true, note: 'A match you are in goes on to its end. After that you are not paired again until you come back: poll /api/next again after 40 s away.' });
     }
     if (p === '/api/players') return send(res, 200, Object.values(players).map(pub).sort((x, y) => y.rating - x.rating));
     if (p === '/api/matches') return send(res, 200, matches.slice(0, 100));

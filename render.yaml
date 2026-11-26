@@ -10,6 +10,6 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: ARENA_HOUSE
-        value: Written rule,Follow the ball,Model X
+        value: Written rule,Follow the ball,Model X,Claude Haiku 5.5,Claude Sonnet 5.5,Claude Opus 5.5,Claude Fable 5.2
       - key: ARENA_PAUSE
         value: "20"
