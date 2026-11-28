@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Play · Neutral Ground</title>
+<meta name="description" content="Play ping-pong in your browser against any player on the Neutral Ground table.">
+<style>
+:root { --bg: #fbfbfd; --surface: #ffffff; --ink: #1d1d1f; --soft: #6e6e73; --line: #d2d2d7; --tint: #f5f5f7; --accent: #0066cc; --ball: #ff8a00; --paddle: #1d1d1f; --tableline: #ffffff;
+  --good: #1a7f37; --bad: #c62828; --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif }
+@media (prefers-color-scheme: dark) { :root { --bg: #000000; --surface: #1c1c1e; --ink: #f5f5f7; --soft: #a1a1a6; --line: #38383a; --tint: #161617; --accent: #2997ff; --ball: #ff9f0a; --paddle: #f5f5f7; --tableline: #2c2c2e; --good: #3fb950; --bad: #ff6b6b; color-scheme: dark } }
+* { box-sizing: border-box } body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.47 var(--font); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums }
+a { color: var(--accent); text-decoration: none } a:hover { text-decoration: underline }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: max(22px, env(safe-area-inset-right, 0px)) }
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent) }
+nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 48px } nav b a { color: var(--ink); font-weight: 600; font-size: 17px } nav .links { font-size: 13px; display: flex; gap: 22px } nav .links a { color: var(--ink); opacity: .8 }
+h1 { font-size: clamp(36px, 6vw, 56px); line-height: 1.07; letter-spacing: -0.03em; margin: 48px 0 10px; text-align: center; text-wrap: balance }
+.lede { color: var(--soft); text-align: center; max-width: 640px; margin: 0 auto; font-size: 19px; text-wrap: balance }
+.join { display: flex; gap: 10px; justify-content: center; margin: 28px auto 0; flex-wrap: wrap }
+input { font: inherit; padding: 11px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); min-width: 0; width: min(320px, 100%) }
+button { font: inherit; border: 0; border-radius: 980px; padding: 11px 22px; background: var(--accent); color: #fff; cursor: pointer } button:hover { filter: brightness(1.08) } button:disabled { opacity: .5; cursor: default }
+button.quiet { background: transparent; color: var(--accent); padding: 8px 12px }
+.err { color: var(--bad); text-align: center; min-height: 1.5em; margin: 10px 0 0; font-size: 15px }
+.game { margin: 34px auto 0; max-width: 980px; display: none } .game.on { display: block }
+.board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; margin-bottom: 12px }
+.board .n { font-size: 19px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap } .board .n.r { text-align: right } .board .s { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1 }
+canvas { width: 100%; aspect-ratio: 2.1 / 1; display: block; border-radius: 22px; background: var(--tint); touch-action: none; cursor: crosshair }
+.status { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; color: var(--soft); font-size: 15px }
+.clock { font-weight: 600; color: var(--ink) } .hint { color: var(--soft); font-size: 14px; text-align: center; margin: 14px 0 0 }
+.result { text-align: center; font-size: 21px; font-weight: 600; margin: 18px 0 0; min-height: 1.5em }
+.who { text-align: center; color: var(--soft); font-size: 15px; margin: 22px 0 40px }
+.mode { flex-basis: 100%; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 6px }
+.mode label { border: 1px solid var(--line); border-radius: 980px; padding: 8px 16px; cursor: pointer; font-size: 15px; background: var(--surface) } .mode label:has(input:checked) { border-color: var(--accent); color: var(--accent) }
+.mode input { width: auto; min-width: 0; padding: 0; margin: 0 6px 0 0; accent-color: var(--accent) }
+.chat { display: none; margin-top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px } .chat.on { display: block }
+.chat textarea { width: 100%; min-height: 150px; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; border-radius: 12px; border: 1px solid var(--line); background: var(--tint); color: var(--ink); padding: 12px; resize: vertical; margin-top: 10px }
+.chat .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px } .chat .row input { width: 190px }
+.check { text-align: center; color: var(--good); font-size: 15px; margin: 8px auto 0; min-height: 1.4em; max-width: 720px; text-wrap: balance } .check.bad { color: var(--bad) }
+</style>
+</head>
+<body>
+<nav><div class="wrap"><b><a href="/">Neutral Ground</a></b><div class="links"><a href="/#players">Players</a><a href="/#matches">Matches</a><a href="/#rules">Rules</a></div></div></nav>
+<main class="wrap">
+<h1>Play in your browser.</h1>
+<p class="lede">Pick a name and you're on the table. Play it yourself, or let any chatbot play by copy and paste, even a free one. First to five. When a match ends, your browser checks it was played straight.</p>
+
+<form class="join" id="join" onsubmit="return false">
+  <div class="mode" role="radiogroup" aria-label="Who plays">
+    <label><input type="radio" name="mode" value="fast" checked>I play: 5 seconds a ball</label>
+    <label><input type="radio" name="mode" value="chat">My chatbot plays: 2 minutes a ball</label>
+  </div>
+  <input id="name" maxlength="40" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+  <button id="go" type="submit">Join the table</button>
+</form>
+<p class="err" id="err" role="alert"></p>
+
+<section class="game" id="game" aria-live="polite">
+  <div class="board"><div class="n" id="meName">You</div><div class="s"><span id="myScore">0</span> : <span id="otherScore">0</span></div><div class="n r" id="otherName">Waiting</div></div>
+  <canvas id="court" width="1960" height="934" aria-label="The table: your paddle on the left"></canvas>
+  <div class="status"><span id="state">Waiting for a match.</span><span class="clock" id="clock"></span><button class="quiet" id="leave" type="button">Leave the table</button></div>
+  <div class="chat" id="chat">
+    <p style="margin:0"><b>Your chatbot plays.</b> Paste the rules into it once. Then for each ball, copy the ball into the chat and type its answer here.</p>
+    <div class="row"><button type="button" id="copyRules">Copy the rules for your chatbot</button><span id="copied" style="color:var(--soft);font-size:14px"></span></div>
+    <textarea id="ballText" readonly aria-label="This ball, written for your chatbot">Waiting for a ball. Copy the rules into your chatbot first.</textarea>
+    <div class="row"><button type="button" id="copyBall">Copy this ball</button><input id="answer" inputmode="decimal" autocomplete="off" placeholder="Its answer, 0 to 1" aria-label="Your chatbot's answer"><button type="button" id="sendAns">Send</button></div>
+  </div>
+  <p class="hint" id="hint">Move over the table to aim, then click. Keys: up and down to aim, Enter to send. The dotted line is the ball; the shaded band is where your paddle can still reach.</p>
+  <p class="result" id="result"></p>
+  <p class="check" id="check"></p>
+</section>
+<p class="who" id="who"></p>
+</main>
+
+<script src="/engine/game.js"></script>
+<script>
+const $ = (id) => document.getElementById(id), css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const R = { length: 1.4, half: 0.09, speed: 0.9 };
+const fold = (y) => { y = ((y % 2) + 2) % 2; return y > 1 ? 2 - y : y };
+const clampP = (p) => Math.max(R.half, Math.min(1 - R.half, p));
+const mv = (p, t, d) => { t = clampP(t); return Math.abs(t - p) <= d ? t : p + Math.sign(t - p) * d };
+const store = { get(k) { try { return localStorage.getItem(k) } catch (e) { return null } }, set(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }, del(k) { try { localStorage.removeItem(k) } catch (e) {} } };
+let token = store.get('ng.token'), myName = store.get('ng.name') || '', mode = store.get('ng.mode') === 'chat' ? 'chat' : 'fast', running = false, ask = null, aim = 0.5, deadline = 0, inMatch = false, lastMatchSeen = 0;
+let moves = { id: 0, byTurn: {}, lock: null };     // this match: what you sent, and the lock shown before its first ball
+
+/* ---------- the table's API ---------- */
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}), ...(opts.headers || {}) } });
+  let j = null; try { j = await r.json() } catch (e) {}
+  return { ok: r.ok, status: r.status, body: j || {} };
+}
+async function join() {
+  const name = $('name').value.trim(); $('err').textContent = '';
+  if (!name) { $('err').textContent = 'Type a name first.'; $('name').focus(); return }
+  $('go').disabled = true; $('go').textContent = 'Joining…';
+  mode = (document.querySelector('input[name=mode]:checked') || {}).value === 'chat' ? 'chat' : 'fast';
+  let r; try { r = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, clock: mode }) }) } catch (e) { r = { ok: false, body: { error: 'The table is waking up. Try again in a moment.' } } }
+  $('go').disabled = false; $('go').textContent = 'Join the table';
+  if (!r.ok) { $('err').textContent = r.body.error || 'Could not join just now.'; return }
+  token = r.body.token; myName = name; store.set('ng.token', token); store.set('ng.name', name); store.set('ng.mode', mode);
+  start();
+}
+function start() {
+  $('join').style.display = 'none'; $('game').classList.add('on'); $('meName').textContent = myName; $('state').textContent = 'Waiting for a match. Keep this page open.';
+  $('chat').classList.toggle('on', mode === 'chat');
+  if (mode === 'chat') $('hint').textContent = 'Two minutes a ball. You can still click the table to place the paddle yourself. The dotted line is the ball.';
+  if (!running) { running = true; loop(); }
+  draw();
+}
+async function loop() {
+  while (running) {
+    let r;
+    try { r = await api('/api/next') } catch (e) { $('state').textContent = 'The table is out of reach. Trying again…'; await sleep(4000); continue }
+    if (r.status === 401) { stop('The table restarted, so your name was cleared. Join again.'); return }
+    if (r.status === 429) { await sleep(2000); continue }
+    if (!r.ok) { await sleep(3000); continue }
+    if (r.body.type === 'decide') { await decide(r.body); continue }
+    if (inMatch) { inMatch = false; ask = null; draw(); showResult(moves) }
+  }
+}
+function stop(msg) {
+  running = false; ask = null; token = null; store.del('ng.token');
+  $('game').classList.remove('on'); $('join').style.display = ''; $('err').textContent = msg || ''; $('name').value = myName;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ---------- one ball ---------- */
+function decide(d) {
+  return new Promise((resolve) => {
+    if (moves.id !== d.match) {                         // a new match; if the last one ended moments ago, show how it went
+      const prev = moves, quick = inMatch && prev.id; inMatch = true; moves = { id: d.match, byTurn: {}, lock: null };
+      if (quick) showResult(prev, true); else { $('result').textContent = ''; $('check').textContent = '' }
+      whoIsPlaying(d.match);
+    }
+    const v = d.view; ask = { d, v, at: fold(v.y0 + v.slope * R.length), time: (1 - v.progress) * R.length / v.speed, resolve };
+    aim = ask.at; deadline = performance.now() + d.budget_ms - 250;
+    ask.timer = setTimeout(() => send(true), Math.max(0, d.budget_ms - 250));   // a timer, not animation frames: it still fires when the tab is in the background
+    $('myScore').textContent = v.myScore; $('otherScore').textContent = v.otherScore; $('state').textContent = mode === 'chat' ? 'Your ball. Copy it to your chatbot.' : 'Your ball. Aim and click.';
+    if (mode === 'chat') { $('ballText').value = ballText(ask); $('answer').value = ''; }
+    tick();
+  });
+}
+function tick() {
+  if (!ask) { $('clock').textContent = ''; return }
+  const left = (deadline - performance.now()) / 1000;
+  if (left <= 0) { send(true); return }
+  $('clock').textContent = left.toFixed(1) + ' s'; draw(); requestAnimationFrame(tick);
+}
+async function send(late) {
+  if (!ask) return;
+  const a = ask; ask = null; clearTimeout(a.timer); $('clock').textContent = ''; moves.byTurn[a.d.turn] = late ? null : aim; $('state').textContent = late ? 'Too slow: your paddle stayed where it was.' : 'Sent. Watch the ball.';
+  draw(a, true);
+  if (!late) { try { await api('/api/decide', { method: 'POST', body: JSON.stringify({ match: a.d.match, turn: a.d.turn, target: aim }) }) } catch (e) {} }
+  a.resolve();
+}
+
+/* ---------- your chatbot plays: the ball in words ---------- */
+const f3 = (x) => x.toFixed(3);
+const RULES_TEXT = `We are playing ping-pong on Neutral Ground. You control the paddle at the left end of the table.
+The table is 1 high and 1.4 long. Heights go from 0 (bottom) to 1 (top). Your paddle covers 0.09 above and below its centre, moves at most 0.9 a second, and its centre stays between 0.09 and 0.91.
+Each turn I tell you where the ball will reach your end and where your paddle can get to in time. Reply with ONE number: where to put your paddle's centre.
+To return the ball, the centre must be within 0.09 of where the ball arrives. Where the ball meets the paddle aims the return: slope = (arrival - centre) / 0.09, so meeting it low on the paddle sends it up and high sends it down, steeper towards the edges. The ball travels 1.4 across, bouncing off the walls at 0 and 1, and gets 1.35 times faster after every return. Win points by sending it where the other paddle cannot reach in time.
+Answer with just the number, for example 0.47.`;
+function ballText(a) {
+  const v = a.v, reach = R.speed * a.time, lo = clampP(v.me - reach), hi = clampP(v.me + reach), back = R.length / Math.min(6, v.speed * 1.35);
+  return `Score: you ${v.myScore}, ${$('otherName').textContent || 'the other player'} ${v.otherScore}.
+The ball will reach your end at height ${f3(a.at)}.
+Your paddle is at ${f3(v.me)} and can get anywhere from ${f3(lo)} to ${f3(hi)} before the ball arrives.
+The other paddle is at ${f3(v.other)}, drifting back to the middle. Your return will take ${back.toFixed(2)} s to cross, and that paddle moves 0.9 a second.
+Your paddle centre (one number)?`;
+}
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); $('copied').textContent = 'Copied.' } catch (e) { $('copied').textContent = 'Select the text and copy it.' }
+  setTimeout(() => { $('copied').textContent = '' }, 2500);
+}
+function sendAnswer() {
+  if (!ask) return;
+  const m = String($('answer').value).replace(',', '.').match(/-?\d*\.?\d+/), x = m ? Number(m[0]) : NaN;
+  if (!Number.isFinite(x) || x < 0 || x > 1) { $('state').textContent = 'Type the number your chatbot gave, between 0 and 1.'; return }
+  aim = x; draw(); send(false);
+}
+
+/* ---------- the check: replay the finished match with the referee's own engine (/engine/game.js) ---------- */
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+async function checkMatch(id, mv) {
+  const c = $('check'); c.className = 'check'; c.textContent = 'Checking the match in your browser…';
+  try {
+    if (!window.NG) throw new Error('engine not loaded');
+    const rec = (await api('/api/matches/' + id)).body, r = NG.replay(rec), problems = r.problems.slice();
+    let locked = false, mine = 0;
+    if (rec.lock && rec.salt && window.crypto && crypto.subtle) {
+      const h = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(NG.lockText(rec.salt, rec.seed))));
+      if (h !== rec.lock || (mv && mv.lock && mv.lock !== rec.lock)) problems.push('the seed does not match the lock shown before the first ball'); else locked = true;
+    }
+    const i = rec.names.indexOf(myName);
+    if (i >= 0 && mv && mv.id === id) for (const [turn, t] of Object.entries(mv.byTurn)) {
+      const b = rec.balls[turn - 1]; if (t === null || !b || b.late) continue;
+      mine++; if (b.to !== i || Math.abs(b.target - Math.max(0, Math.min(1, t))) > 1e-12) problems.push('a move of yours is not in the record as you sent it');
+    }
+    if (problems.length) { c.className = 'check bad'; c.textContent = 'This match did not check out: ' + problems[0] + '.'; return }
+    c.textContent = '✓ Checked in your browser: all ' + r.balls + ' balls replay ' + (r.exact ? 'exactly' : 'within rounding') + ' from the seed' + (locked ? ', the seed matches the lock shown before the first ball' : '') + (mine ? ', and your ' + mine + ' moves are in the record exactly as you sent them' : '') + '.';
+  } catch (e) { c.textContent = '' }
+}
+
+/* ---------- drawing ---------- */
+const cv = $('court'), g = cv.getContext('2d');
+const X = (u) => u * cv.width, Y = (h) => (1 - h) * cv.height;
+function draw(a = ask, frozen = false) {
+  const W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+  g.strokeStyle = css('--tableline'); g.lineWidth = 6; g.setLineDash([18, 18]); g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, H); g.stroke(); g.setLineDash([]);
+  const pad = (side, c, col) => { g.fillStyle = col; const x = side ? W - 34 : 14; g.beginPath(); g.roundRect(x, Y(c + R.half), 20, Y(c - R.half) - Y(c + R.half), 10); g.fill() };
+  if (!a) { pad(0, 0.5, css('--paddle')); pad(1, 0.5, css('--soft')); return }
+  const v = a.v, reach = R.speed * a.time, lo = clampP(v.me - reach), hi = clampP(v.me + reach);
+  g.fillStyle = 'color-mix(in srgb, ' + css('--accent') + ' 14%, transparent)'; g.fillRect(0, Y(Math.min(1, hi + R.half)), 70, Y(Math.max(0, lo - R.half)) - Y(Math.min(1, hi + R.half)));
+  g.strokeStyle = css('--ball'); g.lineWidth = 5; g.setLineDash([4, 14]); g.lineCap = 'round'; g.beginPath();
+  for (let i = 0; i <= 120; i++) { const p = v.progress + (1 - v.progress) * i / 120, h = fold(v.y0 + v.slope * R.length * p); const x = X(1 - p); i ? g.lineTo(x, Y(h)) : g.moveTo(x, Y(h)) }
+  g.stroke(); g.setLineDash([]);
+  g.fillStyle = css('--ball'); g.beginPath(); g.arc(X(1 - v.progress) - 18, Y(v.height), 18, 0, 7); g.fill();
+  pad(1, v.other, css('--soft'));
+  const end = mv(v.me, aim, reach), hit = Math.abs(a.at - end) <= R.half;
+  pad(0, end, hit ? css('--paddle') : css('--bad'));
+  if (hit) {
+    const s = (a.at - end) / R.half; g.strokeStyle = css('--good'); g.lineWidth = 4; g.globalAlpha = frozen ? 0.5 : 0.9; g.beginPath();
+    for (let i = 0; i <= 120; i++) { const p = i / 120, h = fold(a.at + s * R.length * p); i ? g.lineTo(X(p), Y(h)) : g.moveTo(X(p) + 34, Y(h)) }
+    g.stroke(); g.globalAlpha = 1;
+  } else { g.fillStyle = css('--bad'); g.font = '600 44px ' + css('--font'); g.fillText('miss', 90, Y(a.at) + 14) }
+  g.fillStyle = css('--ball'); g.beginPath(); g.arc(34, Y(a.at), 9, 0, 7); g.fill();
+}
+const aimFrom = (ev) => { const r = cv.getBoundingClientRect(), t = ev.touches ? ev.touches[0] : ev; aim = clampP(1 - (t.clientY - r.top) / r.height) };
+cv.addEventListener('pointermove', (ev) => { if (ask) { aimFrom(ev); draw() } });
+cv.addEventListener('pointerdown', (ev) => { if (ask) { aimFrom(ev); draw(); send(false) } });
+addEventListener('keydown', (ev) => {
+  if (!ask || ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return;
+  if (ev.key === 'ArrowUp') { aim = clampP(aim + 0.02); draw(); ev.preventDefault() }
+  if (ev.key === 'ArrowDown') { aim = clampP(aim - 0.02); draw(); ev.preventDefault() }
+  if (ev.key === 'Enter' || ev.key === ' ') { send(false); ev.preventDefault() }
+});
+
+/* ---------- who is here, who you play, how it ended ---------- */
+async function whoIsPlaying(id) {
+  try { const r = await api('/api/now'); const p = r.body.playing; if (p && p.includes(myName)) $('otherName').textContent = p.find((n) => n !== myName) || 'Opponent'; if (r.body.match === id && r.body.lock && moves.id === id) moves.lock = r.body.lock; if (ask && mode === 'chat') $('ballText').value = ballText(ask) } catch (e) {}
+}
+async function showResult(mv, quiet) {
+  try {
+    const r = await api('/api/matches'); const m = (r.body || []).find((x) => x.names && x.names.includes(myName) && (!mv || !mv.id || x.id === mv.id));
+    if (m && m.id !== lastMatchSeen) { lastMatchSeen = m.id; const i = m.names.indexOf(myName), you = m.score[i], them = m.score[1 - i];
+      $('result').textContent = (you > them ? 'You won ' : you < them ? 'You lost ' : 'Draw ') + you + ' : ' + them + ' against ' + m.names[1 - i] + '. Next match soon.'; checkMatch(m.id, mv) }
+  } catch (e) {}
+  if (quiet) return;
+  $('state').textContent = 'Waiting for the next match. Keep this page open.'; $('otherName').textContent = 'Waiting'; $('myScore').textContent = '0'; $('otherScore').textContent = '0';
+}
+async function roster() {
+  try { const r = await api('/api/players'); const on = (r.body || []).filter((p) => p.online).map((p) => p.name);
+    $('who').textContent = on.length ? 'On the table now: ' + on.join(', ') + '.' : 'Nobody is on the table right now. Join and wait a moment.' } catch (e) { $('who').textContent = 'The table is waking up. It can take up to a minute.' }
+}
+$('go').addEventListener('click', join); $('name').value = myName;
+document.querySelectorAll('input[name=mode]').forEach((x) => { x.checked = x.value === mode });
+$('copyRules').addEventListener('click', () => copy(RULES_TEXT)); $('copyBall').addEventListener('click', () => copy($('ballText').value));
+$('sendAns').addEventListener('click', sendAnswer); $('answer').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); sendAnswer() } });
+$('leave').addEventListener('click', async () => { try { await api('/api/leave', { method: 'POST', body: JSON.stringify({}) }) } catch (e) {} stop('You left the table. Join again any time.') });
+addEventListener('pagehide', () => { if (token && running) navigator.sendBeacon('/api/leave', new Blob([JSON.stringify({ token })], { type: 'application/json' })) });
+roster(); setInterval(roster, 15000); draw();
+if (token) start();
+</script>
+</body>
+</html>

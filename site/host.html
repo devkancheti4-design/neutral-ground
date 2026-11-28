@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Host · Neutral Ground</title>
+<meta name="robots" content="noindex">
+<style>
+:root { --bg: #fbfbfd; --surface: #ffffff; --ink: #1d1d1f; --soft: #6e6e73; --line: #d2d2d7; --tint: #f5f5f7; --accent: #0066cc; --good: #1a7f37; --bad: #c62828;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif }
+@media (prefers-color-scheme: dark) { :root { --bg: #000000; --surface: #1c1c1e; --ink: #f5f5f7; --soft: #a1a1a6; --line: #38383a; --tint: #161617; --accent: #2997ff; --good: #3fb950; --bad: #ff6b6b; color-scheme: dark } }
+* { box-sizing: border-box } body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.47 var(--font); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums }
+a { color: var(--accent); text-decoration: none }
+.wrap { max-width: 860px; margin: 0 auto; padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: max(22px, env(safe-area-inset-right, 0px)); padding-block: 40px 60px }
+h1 { font-size: clamp(32px, 5vw, 44px); letter-spacing: -0.03em; margin: 0 0 6px } .lede { color: var(--soft); margin: 0 0 28px }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 18px } .card h2 { font-size: 19px; margin: 0 0 12px; letter-spacing: -0.02em }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center }
+input, select { font: inherit; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); min-width: 0 } input { width: min(420px, 100%) }
+button { font: inherit; border: 0; border-radius: 980px; padding: 10px 20px; background: var(--accent); color: #fff; cursor: pointer } button.quiet { background: transparent; color: var(--accent); padding: 8px 10px } button:disabled { opacity: .5 }
+.state { font-size: 21px; font-weight: 600 } .soft { color: var(--soft); font-size: 15px } .msg { min-height: 1.4em; font-size: 15px; margin-top: 10px } .msg.bad { color: var(--bad) } .msg.good { color: var(--good) }
+table { width: 100%; border-collapse: collapse; font-size: 15px } td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line) } th { color: var(--soft); font-weight: 500; font-size: 13px }
+.on { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #30d158; margin-left: 6px } .tag { font-size: 12px; color: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; margin-left: 6px }
+.scroll { overflow-x: auto } [hidden] { display: none !important }
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>Host the table.</h1>
+<p class="lede">For the table's hosts. A host can pause the table, choose the next pair and remove a name. A host cannot touch a match, and every host action is public on <a href="/api/hostlog">the host log</a>.</p>
+
+<div class="card" id="keyCard">
+  <h2>Your host key</h2>
+  <form class="row" id="keyForm" onsubmit="return false"><input id="key" type="password" autocomplete="off" placeholder="ngh_…" aria-label="Host key"><button id="use" type="submit">Open</button></form>
+  <p class="soft" style="margin:10px 0 0">Kept only in this browser. It never appears in a link.</p>
+  <p class="msg" id="keyMsg" role="alert"></p>
+</div>
+
+<div id="panel" hidden>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><div><div class="state" id="state">…</div><div class="soft" id="who"></div></div>
+    <div class="row"><button id="pause" type="button">Pause</button><button class="quiet" id="forget" type="button">Forget my key</button></div></div>
+    <p class="msg" id="msg" role="status"></p>
+  </div>
+  <div class="card">
+    <h2>Next match</h2>
+    <div class="row"><select id="a" aria-label="First player"></select><span class="soft">against</span><select id="b" aria-label="Second player"></select><button id="next" type="button">Play next</button></div>
+    <p class="soft" style="margin:10px 0 0">Played as soon as both are online, within ten minutes.</p>
+  </div>
+  <div class="card">
+    <h2>Players</h2>
+    <div class="scroll"><table><thead><tr><th>Player</th><th>Rating</th><th>Played</th><th>Clock</th><th></th></tr></thead><tbody id="ptab"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Host log</h2>
+    <div class="scroll"><table><tbody id="log"></tbody></table></div>
+  </div>
+</div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id), esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const store = { get(k) { try { return localStorage.getItem(k) } catch (e) { return null } }, set(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }, del(k) { try { localStorage.removeItem(k) } catch (e) {} } };
+let key = store.get('ng.hostkey'), last = null, timer = null;
+async function host(path, body) {
+  const r = await fetch('/api/host/' + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-host-key': key }, body: body ? JSON.stringify(body) : undefined });
+  let j = {}; try { j = await r.json() } catch (e) {}
+  return { ok: r.ok, status: r.status, body: j };
+}
+const say = (t, cls) => { $('msg').className = 'msg ' + (cls || ''); $('msg').textContent = t };
+async function refresh() {
+  let r; try { r = await host('status') } catch (e) { say('The table is not answering. It may be waking up.', 'bad'); return }
+  if (r.status === 401 || r.status === 429) { closePanel(r.body.error || 'That is not a host key.'); return }
+  if (!r.ok) return;
+  const s = last = r.body;
+  $('keyCard').hidden = true; $('panel').hidden = false;
+  $('state').textContent = s.paused ? 'Paused' : s.playing ? 'Playing: ' + s.playing.join(' v ') : s.state === 'waiting' ? 'Waiting for players' : 'Between matches';
+  $('who').textContent = 'Signed in as ' + s.host + (s.next ? '. Next: ' + s.next.join(' v ') + '.' : '.');
+  $('pause').textContent = s.paused ? 'Resume' : 'Pause';
+  const opts = s.players.map((p) => `<option value="${esc(p.name)}">${esc(p.name)}${p.online ? ' (online)' : ''}</option>`).join('');
+  for (const id of ['a', 'b']) { const v = $(id).value; $(id).innerHTML = opts; if (v) $(id).value = v }
+  if (!$('a').value && s.players.find((p) => p.name === 'Model X')) $('a').value = 'Model X';
+  $('ptab').innerHTML = s.players.map((p) => `<tr><td>${esc(p.name)}${p.house ? '<span class="tag">house</span>' : ''}${p.online ? '<span class="on" title="online"></span>' : ''}</td><td>${p.rating}</td><td>${p.played}</td><td>${p.clock === 'chat' ? 'chat' : '5 s'}</td><td>${p.house ? '' : `<button class="quiet" data-remove="${esc(p.name)}" type="button">Remove</button>`}</td></tr>`).join('');
+  $('log').innerHTML = s.log.length ? s.log.map((l) => `<tr><td class="soft">${esc(new Date(l.time).toLocaleString())}</td><td>${esc(l.host)}</td><td>${esc(l.action)}</td><td>${esc(l.detail || '')}</td></tr>`).join('') : '<tr><td class="soft">Nothing yet.</td></tr>';
+}
+function closePanel(msg) { clearInterval(timer); timer = null; $('panel').hidden = true; $('keyCard').hidden = false; $('keyMsg').textContent = msg || '' }
+function open_() { if (!key) return; refresh(); clearInterval(timer); timer = setInterval(refresh, 5000) }
+$('use').addEventListener('click', () => { key = $('key').value.trim(); if (!key) return; store.set('ng.hostkey', key); $('key').value = ''; $('keyMsg').textContent = ''; open_() });
+$('forget').addEventListener('click', () => { store.del('ng.hostkey'); key = null; closePanel('Key forgotten on this browser.') });
+$('pause').addEventListener('click', async () => { const r = await host('pause', { on: !(last && last.paused) }); say(r.ok ? (r.body.paused ? 'Paused: the match in play finishes, then the table waits.' : 'The table plays again.') : r.body.error, r.ok ? 'good' : 'bad'); refresh() });
+$('next').addEventListener('click', async () => { const r = await host('next', { a: $('a').value, b: $('b').value }); say(r.ok ? 'Next: ' + r.body.next.join(' v ') + '. ' + r.body.note : r.body.error, r.ok ? 'good' : 'bad'); refresh() });
+$('ptab').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-remove]'); if (!b) return;
+  if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Click again to remove'; setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Remove' }, 4000); return }
+  const r = await host('remove', { name: b.dataset.remove }); say(r.ok ? 'Removed ' + b.dataset.remove + '.' : r.body.error, r.ok ? 'good' : 'bad'); refresh();
+});
+open_();
+</script>
+</body>
+</html>
