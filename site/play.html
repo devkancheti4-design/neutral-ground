@@ -84,7 +84,7 @@ let moves = { id: 0, byTurn: {}, lock: null };     // this match: what you sent,
 
 /* ---------- the table's API ---------- */
 async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}), ...(opts.headers || {}) } });
+  const r = await fetch(path, { signal: AbortSignal.timeout(path === '/api/next' ? 35000 : 10000), ...opts, headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}), ...(opts.headers || {}) } });
   let j = null; try { j = await r.json() } catch (e) {}
   return { ok: r.ok, status: r.status, body: j || {} };
 }
@@ -110,7 +110,8 @@ async function loop() {
   while (running) {
     let r;
     try { r = await api('/api/next') } catch (e) { $('state').textContent = 'The table is out of reach. Trying again…'; await sleep(4000); continue }
-    if (r.status === 401) { stop('The table restarted, so your name was cleared. Join again.'); return }
+    if (r.status === 401) { const n = myName; token = null; store.del('ng.token'); const j = await api('/api/register', { method: 'POST', body: JSON.stringify({ name: n, clock: mode }) }).catch(() => null);
+      if (j && j.ok) { token = j.body.token; store.set('ng.token', token); continue } stop('The table restarted. Join again.'); return }
     if (r.status === 429) { await sleep(2000); continue }
     if (!r.ok) { await sleep(3000); continue }
     if (r.body.type === 'decide') { await decide(r.body); continue }
@@ -134,7 +135,9 @@ function decide(d) {
     const v = d.view; ask = { d, v, at: fold(v.y0 + v.slope * R.length), time: (1 - v.progress) * R.length / v.speed, resolve };
     aim = ask.at; deadline = performance.now() + d.budget_ms - 250;
     ask.timer = setTimeout(() => send(true), Math.max(0, d.budget_ms - 250));   // a timer, not animation frames: it still fires when the tab is in the background
-    $('myScore').textContent = v.myScore; $('otherScore').textContent = v.otherScore; $('state').textContent = mode === 'chat' ? 'Your ball. Copy it to your chatbot.' : 'Your ball. Aim and click.';
+    $('myScore').textContent = v.myScore; $('otherScore').textContent = v.otherScore;
+    const reach = R.speed * ask.time; ask.out = Math.abs(clampP(ask.at) - v.me) > reach + R.half;
+    $('state').textContent = ask.out ? 'Out of reach: this shot is too far for any paddle to get to in time. Same rules for both sides.' : mode === 'chat' ? 'Your ball. Copy it to your chatbot.' : 'Your ball. Aim and click.';
     if (mode === 'chat') { $('ballText').value = ballText(ask); $('answer').value = ''; }
     tick();
   });
@@ -222,7 +225,7 @@ function draw(a = ask, frozen = false) {
     const s = (a.at - end) / R.half; g.strokeStyle = css('--good'); g.lineWidth = 4; g.globalAlpha = frozen ? 0.5 : 0.9; g.beginPath();
     for (let i = 0; i <= 120; i++) { const p = i / 120, h = fold(a.at + s * R.length * p); i ? g.lineTo(X(p), Y(h)) : g.moveTo(X(p) + 34, Y(h)) }
     g.stroke(); g.globalAlpha = 1;
-  } else { g.fillStyle = css('--bad'); g.font = '600 44px ' + css('--font'); g.fillText('miss', 90, Y(a.at) + 14) }
+  } else if (a.out) { g.fillStyle = css('--soft'); g.font = '600 40px ' + css('--font'); g.fillText('out of reach', 90, Math.min(cv.height - 20, Math.max(50, Y(a.at) + 14))) }
   g.fillStyle = css('--ball'); g.beginPath(); g.arc(34, Y(a.at), 9, 0, 7); g.fill();
 }
 const aimFrom = (ev) => { const r = cv.getBoundingClientRect(), t = ev.touches ? ev.touches[0] : ev; aim = clampP(1 - (t.clientY - r.top) / r.height) };
